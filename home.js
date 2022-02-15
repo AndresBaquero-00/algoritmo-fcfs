@@ -1,24 +1,53 @@
 const btnEnviar = document.querySelector('#enviar');
+const btnEjecutar = document.querySelector('#ejecutar');
+const btnEnviarEjecutar = document.querySelector('#enviar-ejecutar');
 const btnReanudar = document.querySelector('#reanudar');
 const btnBloquear = document.querySelector('#bloquear');
+
 const txtProceso = document.querySelector('#nproceso');
 const txtLlegada = document.querySelector('#tllegada');
 const txtRafaga = document.querySelector('#rafaga');
+
 const divRojo = document.querySelector('#rojo');
 const divVerde = document.querySelector('#verde');
 const table = document.querySelector('#table');
 
 
 const canvasRecta = document.querySelector('#recta');
-const divDiagrama = document.querySelector('.diagrama');
 const ctx = canvasRecta.getContext('2d');
 
-
+/**
+ * Array que guarda los procesos en una cola de espera.
+ */
 const procesos = [];
+/**
+ * Array que almacena los colores que se van a usar para dibujar cada proceso en el diagrama.
+ */
+const colores = ['red', 'green', 'blue', 'orange', '#7D3C98', 'black'];
+/**
+ * La cantidad de segundos totales que la sección crítica está trabajando.
+ */
 let seconds = 0;
-let timeBlock = 0;
+/**
+ * Contador de colores.
+ */
+let cont = 0;
+/**
+ * Contador de procesos.
+ */
 let i = 0;
+/**
+ * Determina si la sección crítica ejecuta procesos en tiempo real o en bloque.
+ */
+let ejecutar = false;
+/**
+ * Almacena un estado si la sección crítica cambia de proceso y hay más procesos en la lista de espera.
+ */
+let hayProcesos = false;
 
+/**
+ * Función que dibuja la recta numérica inicial del diagrama.
+ */
 const iniciarDiagrama = () => {
     ctx.fillStyle = '#F4F6F6';
     ctx.fillRect(0, 0, canvasRecta.width, canvasRecta.height);
@@ -45,19 +74,25 @@ const iniciarDiagrama = () => {
     }
 }
 
+/**
+ * Función que setea la sección crítica a estado ocupado.
+ */
 const busy = () => {
     divVerde.className = 'verde-inactivo';
     divRojo.className = 'rojo-activo';
 };
 
+/**
+ * Función que setea la sección crítica a estado desocupado.
+ */
 const free = () => {
     divVerde.className = 'verde-activo';
     divRojo.className = 'rojo-inactivo';
 };
 
 /**
- * Funcion que añade un nuevo registro en la tabla
- * @param {any} proceso El proceso que ha terminado y va a ser añadido en la tabla
+ * Función que agrega el proceso en ejecución a la tabla de procesos ejecutados.
+ * @param {any} proceso 
  */
 const registrarProceso = (proceso) => {
     table.children[1].innerHTML +=
@@ -72,8 +107,10 @@ const registrarProceso = (proceso) => {
         </tr>`;
 }
 
-const colores = ['red', 'green', 'blue', 'orange', '#7D3C98', 'black'];
-let cont = 0;
+/**
+ * Función que dibuja la recta asociada a cada proceso en el canvas.
+ * @param {any} proceso 
+ */
 const dibujarProceso = (proceso) => {
     if (cont === colores.length) {
         cont = 0;
@@ -115,7 +152,7 @@ const dibujarProceso = (proceso) => {
 /**
  * Funcion que permite agregar un proceso a la cola de espera.
  */
-const agregarProceso = () => {
+const enviarProceso = () => {
     const nproceso = txtProceso.value;
     const tllegada = Number.parseInt(txtLlegada.value);
     const rafaga = Number.parseInt(txtRafaga.value);
@@ -125,20 +162,80 @@ const agregarProceso = () => {
     const tretorno = tfinal - tllegada;
     const tespera = tretorno - rafaga;
 
+    if (procesos.length > 0 && tllegada < procesos[procesos.length - 1].tllegada) {
+        alert(`El tiempo de llegada debe ser mayor o igual a ${ procesos[procesos.length - 1].tllegada }.`);
+        return;
+    }
+
     procesos.push({
         bloqueado: false,
-        nproceso,
-        tllegada,
-        rafaga,
-        tcomienzo,
-        tfinal,
-        tretorno,
-        tespera
+        timeblock: 0,
+        nproceso: nproceso,
+        tllegada: tllegada,
+        rafaga: rafaga,
+        tcomienzo: tcomienzo,
+        tfinal: tfinal,
+        tretorno: tretorno,
+        tespera: tespera
     });
 
     txtProceso.value = ''; txtLlegada.value = ''; txtRafaga.value = '';
+    ejecutar = false;
+    hayProcesos = true;
 }
 
+/**
+ * Función que se encarga de ejecutar los procesos que están actualmente en la cola de espera.
+ */
+const ejecutarProceso = () => {
+    ejecutar = true;
+}
+
+/**
+ * Función que se encarga de agregar un nuevo proceso a la cola de espera en tiempo de ejecución.
+ */
+const enviarEjecutarProceso = () => {
+    enviarProceso();
+    ejecutarProceso();
+}
+
+/**
+ * Función encargada del manejo de la sección crítica.
+ */
+const handler = () => {
+    if (!ejecutar || !hayProcesos) {
+        return;
+    }
+
+    const proceso = procesos[i];
+
+    if (proceso.bloqueado) {
+        proceso.timeblock++;
+        return;
+    }
+
+    if (seconds >= proceso.tcomienzo) {
+        busy();
+        if (proceso.tfinal === seconds) {
+            registrarProceso(proceso); 
+            dibujarProceso(proceso);
+            free(); 
+            hayProcesos = false; i++; 
+
+            if (i < procesos.length) {
+                setTimeout(() => { hayProcesos = true }, 1000);
+            }
+        }
+    } else {
+        free();
+    }
+
+    seconds++;
+}
+
+/**
+ * Función encargada de bloquear un proceso.
+ */
 const bloquearProceso = () => {
     if (i === procesos.length) {
         return;
@@ -148,46 +245,31 @@ const bloquearProceso = () => {
     alert(`El proceso ${ procesos[i].nproceso } ha sido bloqueado.`);
 }
 
+/**
+ * Función encargada de reanudar un proceso bloqueado.
+ */
 const reanudarProceso = () => {
     if (i === procesos.length) {
         return;
     }
     
     procesos[i].bloqueado = false;
-    procesos[i].tespera += timeBlock;
-    timeBlock = 0;
+    procesos[i].tespera += proceso[i].timeblock;
     alert(`El proceso ${ procesos[i].nproceso } ha sido desbloqueado.`);
 }
 
-let time = setInterval(() => {
-    if (procesos.length === i) {
-        free();
-        return;
-    }
-
-    const proceso = procesos[i];
-
-    if (proceso.bloqueado) {
-        timeBlock++;
-        return;
-    }
-
-    if (seconds >= proceso.tcomienzo) {
-        busy();
-        if (proceso.tfinal === seconds) {
-            i++;
-            registrarProceso(proceso);
-            dibujarProceso(proceso);
-        }
-    } else {
-        free();
-    }
-
-    seconds++;
-}, 1000);
+const time = setInterval(handler, 1000);
 
 btnEnviar.addEventListener('click', () => {
-    agregarProceso();
+    enviarProceso();
+});
+
+btnEjecutar.addEventListener('click', () => {
+    ejecutarProceso();
+});
+
+btnEnviarEjecutar.addEventListener('click', () => {
+    enviarEjecutarProceso();
 });
 
 btnBloquear.addEventListener('click', () => {
@@ -199,4 +281,5 @@ btnReanudar.addEventListener('click', () => {
 });
 
 iniciarDiagrama();
+free();
 
