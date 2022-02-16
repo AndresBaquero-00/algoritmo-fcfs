@@ -207,12 +207,12 @@ const handler = () => {
         return;
     }
 
-    const proceso = procesos[i];
-
-    if (proceso.bloqueado) {
-        proceso.timeblock++;
+    if (procesos[i].bloqueado) {
+        procesos[i].timeblock++;
         return;
     }
+
+    const proceso = procesos[i];
 
     if (seconds >= proceso.tcomienzo) {
         busy();
@@ -254,7 +254,7 @@ const reanudarProceso = () => {
     }
     
     procesos[i].bloqueado = false;
-    procesos[i].tespera += proceso[i].timeblock;
+    procesos[i].tespera += procesos[i].timeblock;
     alert(`El proceso ${ procesos[i].nproceso } ha sido desbloqueado.`);
 }
 
