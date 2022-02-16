@@ -216,11 +216,11 @@ const handler = () => {
 
     if (seconds >= proceso.tcomienzo) {
         busy();
-        if (proceso.tfinal === seconds) {
+        if (proceso.tfinal === seconds) { 
+            hayProcesos = false; i++;
             registrarProceso(proceso); 
             dibujarProceso(proceso);
-            free(); 
-            hayProcesos = false; i++; 
+            free();
 
             if (i < procesos.length) {
                 setTimeout(() => { hayProcesos = true }, 1000);
