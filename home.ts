@@ -288,8 +288,8 @@ const handlerCB = (): void => {
         } else {
             const procesoB: Proceso = bloqueados.splice(0, 1)[0];
             const procesoN: Proceso = crearProceso(
-                `${ procesoB.nombre }*`, 
-                procesoB.tiempo_ejecutado, 
+                `${ procesoB.nombre }*`,
+                procesoB.tiempo_comienzo + procesoB.tiempo_ejecutado,
                 procesoB.rafaga - procesoB.tiempo_ejecutado
             );
             procesos.push(procesoN);

@@ -236,7 +236,7 @@ var handlerCB = function () {
         }
         else {
             var procesoB = bloqueados.splice(0, 1)[0];
-            var procesoN = crearProceso("".concat(procesoB.nombre, "*"), procesoB.tiempo_ejecutado, procesoB.rafaga - procesoB.tiempo_ejecutado);
+            var procesoN = crearProceso("".concat(procesoB.nombre, "*"), procesoB.tiempo_comienzo + procesoB.tiempo_ejecutado, procesoB.rafaga - procesoB.tiempo_ejecutado);
             procesos.push(procesoN);
             registrarProceso(procesoN);
             alert("El proceso ".concat(procesoB.nombre, " ha sido desbloqueado."));
