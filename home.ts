@@ -1,7 +1,6 @@
 interface Bloqueo {
-    estado_block?: boolean;
-    tiempo_block?: number;
     tiempo_inicio?: number;
+    tiempo_block?: number;
 }
 
 interface Proceso {
@@ -14,7 +13,6 @@ interface Proceso {
     tiempo_final?: number;
     tiempo_retorno?: number;
     tiempo_espera?: number;
-    index?: number;
 }
 
 
@@ -42,6 +40,10 @@ const ctx = canvas.getContext('2d');
  */
 const procesos: Proceso[] = [];
 /**
+ * Array que guarda los procesos bloqueados.
+ */
+const bloqueados: Proceso[] = [];
+/**
  * Contador de procesos.
  */
 let i = 0;
@@ -53,6 +55,10 @@ let ejecutar = false;
 * Almacena un estado si la sección crítica cambia de proceso y hay más procesos en la lista de espera.
 */
 let hayProcesos = false;
+/**
+ * Almacena el ultimo proceso registrado.
+ */
+let lastProceso: Proceso;
 /**
  * Contador de colores.
  */
@@ -84,41 +90,43 @@ const free = (): void => {
 const change = (): void => {
     hayProcesos = false;
     free();
-    if (i < procesos.length) {
+    if (1 <= procesos.length) {
         setTimeout(() => { hayProcesos = true }, 1000);
     }
 }
 
 /**
- * 
- * @param uProceso El ultimo proceso en la cola.
- * @returns El nuevo proceso que está en la lista de espera.
+ * Función encargada de crear un nuevo proceso a partir de una plantilla.
+ * @param { string } nombre Nombre del proceso.
+ * @param { number } tiempo_llegada Tiempo de llegada del proceso.
+ * @param { number } rafaga Rafaga del proceso.
+ * @returns 
  */
-const crearProceso = (uProceso: Proceso): Proceso => {
+const crearProceso = (
+    nombre: string = txtProceso.value,
+    tiempo_llegada: number = parseInt(txtLlegada.value),
+    rafaga: number = parseInt(txtRafaga.value)
+): Proceso => {
     const proceso: Proceso = {
-        nombre: txtProceso.value,
-        tiempo_llegada: parseInt(txtLlegada.value),
-        rafaga: parseInt(txtRafaga.value),
+        nombre: nombre,
+        tiempo_llegada: tiempo_llegada,
+        rafaga: rafaga,
         tiempo_ejecutado: 0,
-        index: procesos.length,
         bloqueo: {
             tiempo_block: 0,
-            estado_block: false
+            tiempo_inicio: 0
         }
     }
 
-    
-    if (procesos.length === 0) {
+    if (!lastProceso) {
         proceso.tiempo_comienzo = proceso.tiempo_llegada;
     } else {
-        proceso.tiempo_comienzo = uProceso.tiempo_final >= proceso.tiempo_llegada ? uProceso.tiempo_final : proceso.tiempo_llegada;
+        proceso.tiempo_comienzo = lastProceso.tiempo_final >= proceso.tiempo_llegada ? lastProceso.tiempo_final : proceso.tiempo_llegada;
     }
 
     proceso.tiempo_final = proceso.rafaga + proceso.tiempo_comienzo;
     proceso.tiempo_retorno = proceso.tiempo_final - proceso.tiempo_llegada;
     proceso.tiempo_espera = proceso.tiempo_retorno - proceso.rafaga;
-    proceso.bloqueo.tiempo_inicio = proceso.tiempo_comienzo;
-
     return proceso;
 }
 
@@ -126,7 +134,7 @@ const crearProceso = (uProceso: Proceso): Proceso => {
  * Función que agrega el proceso en ejecución a la tabla de procesos ejecutados.
  * @param proceso 
  */
-const registrarProceso = (proceso: Proceso) => {
+const registrarProceso = (proceso: Proceso): void => {
     table.children[1].innerHTML +=
         `<tr>
             <td>${proceso.nombre}</td>
@@ -135,7 +143,7 @@ const registrarProceso = (proceso: Proceso) => {
             <td>${proceso.tiempo_comienzo}</td>
             <td>${proceso.tiempo_final}</td>
             <td>${proceso.tiempo_retorno}</td>
-            <td>${proceso.tiempo_espera + proceso.bloqueo.tiempo_block}</td>
+            <td>${proceso.tiempo_espera}</td>
         </tr>`;
 }
 
@@ -149,60 +157,48 @@ const dibujarProceso = (proceso: Proceso): void => {
     } 
     ctx.strokeStyle = colores[cont]; cont++;
     
-    /* Dibuja tiempo de llegada */
+    /* Dibuja (|) tiempo de llegada */
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(2 + proceso.tiempo_llegada*10, 2 + 35*(i + 1));
     ctx.lineTo(2 + proceso.tiempo_llegada*10, 13 + 35*(i + 1));
     ctx.stroke();
 
-    /* Dibuja tiempo de comienzo */
+    /* Dibuja (|) tiempo de comienzo */
     ctx.beginPath();
     ctx.moveTo(2 + proceso.tiempo_comienzo*10, 2 + 35*(i + 1));
     ctx.lineTo(2 + proceso.tiempo_comienzo*10, 13 + 35*(i + 1));
     ctx.stroke();
 
-    /* Dibuja tiempo de inicio bloqueo */
+    /* Dibuja (|) tiempo ejecutado */
     ctx.beginPath();
-    ctx.moveTo(2 + proceso.bloqueo.tiempo_inicio*10, 2 + 35*(i + 1));
-    ctx.lineTo(2 + proceso.bloqueo.tiempo_inicio*10, 13 + 35*(i + 1));
+    ctx.moveTo(2 + (proceso.tiempo_comienzo + proceso.tiempo_ejecutado)*10, 2 + 35*(i + 1));
+    ctx.lineTo(2 + (proceso.tiempo_comienzo + proceso.tiempo_ejecutado)*10, 13 + 35*(i + 1));
     ctx.stroke();
 
-    /* Dibuja tiempo final bloqueo */
+    /* Dibuja (|) tiempo final */
     ctx.beginPath();
-    ctx.moveTo(2 + (proceso.bloqueo.tiempo_inicio + proceso.bloqueo.tiempo_block)*10, 2 + 35*(i + 1));
-    ctx.lineTo(2 + (proceso.bloqueo.tiempo_inicio + proceso.bloqueo.tiempo_block)*10, 13 + 35*(i + 1));
+    ctx.moveTo(2 + (proceso.tiempo_final)*10, 2 + 35*(i + 1));
+    ctx.lineTo(2 + (proceso.tiempo_final)*10, 13 + 35*(i + 1));
     ctx.stroke();
 
-    /* Dibuja tiempo final */
-    ctx.beginPath();
-    ctx.moveTo(2 + (proceso.tiempo_final + proceso.bloqueo.tiempo_block)*10, 2 + 35*(i + 1));
-    ctx.lineTo(2 + (proceso.tiempo_final + proceso.bloqueo.tiempo_block)*10, 13 + 35*(i + 1));
-    ctx.stroke();
-
-    /* Dibuja linea desde tiempo de comienzo hasta tiempo de inicio bloqueo */
+    /* Dibuja linea desde tiempo de llegada hasta tiempo de comienzo (Tiempo Ejecucion) */
     ctx.beginPath();
     ctx.moveTo(2 + proceso.tiempo_comienzo*10, 7.5 + 35*(i + 1));
-    ctx.lineTo(2 + proceso.bloqueo.tiempo_inicio*10, 7.5 + 35*(i + 1));
+    ctx.lineTo(2 + (proceso.tiempo_comienzo + proceso.tiempo_ejecutado)*10, 7.5 + 35*(i + 1));
     ctx.stroke();
 
-    /* Dibuja linea desde tiempo de comienzo hasta tiempo de inicio bloqueo */
-    ctx.beginPath();
-    ctx.moveTo(2 + (proceso.bloqueo.tiempo_inicio + proceso.bloqueo.tiempo_block)*10, 7.5 + 35*(i + 1));
-    ctx.lineTo(2 + (proceso.tiempo_final + proceso.bloqueo.tiempo_block)*10, 7.5 + 35*(i + 1));
-    ctx.stroke();
-
-    /* Dibuja linea desde tiempo de llegada hasta tiempo de comienzo */
+    /* Dibuja linea desde tiempo de llegada hasta tiempo de comienzo (Tiempo Espera) */
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
     ctx.moveTo(2 + proceso.tiempo_llegada*10, 7.5 + 35*(i + 1));
     ctx.lineTo(2 + proceso.tiempo_comienzo*10, 7.5 + 35*(i + 1));
     ctx.stroke();
 
-    /* Dibuja linea desde tiempo de inicio bloqueo hasta tiempo final bloqueo */
+    /* Dibuja linea desde tiempo de llegada hasta tiempo de comienzo (Tiempo Espera) */
     ctx.beginPath();
-    ctx.moveTo(2 + proceso.bloqueo.tiempo_inicio*10, 7.5 + 35*(i + 1));
-    ctx.lineTo(2 + (proceso.bloqueo.tiempo_inicio + proceso.bloqueo.tiempo_block)*10, 7.5 + 35*(i + 1));
+    ctx.moveTo(2 + (proceso.tiempo_comienzo + proceso.tiempo_ejecutado)*10, 7.5 + 35*(i + 1));
+    ctx.lineTo(2 + proceso.tiempo_final*10, 7.5 + 35*(i + 1));
     ctx.stroke();
 }
 
@@ -210,26 +206,24 @@ const dibujarProceso = (proceso: Proceso): void => {
  * Funcion que permite agregar un proceso a la cola de espera.
  */
 const enviarProceso = (): void => {
-    const uProceso: Proceso = procesos.filter(p => {
-        if (p.index + 1 === procesos.length) {
-            return p;
-        }
-    })[0];
-    const proceso: Proceso = crearProceso(uProceso);
+    const proceso: Proceso = crearProceso();
 
     if (!proceso.nombre || isNaN(proceso.tiempo_llegada) || isNaN(proceso.rafaga)) {
         alert('No se admiten campos vacíos. Intente nuevamente.');
         return;
     }
 
-    if (uProceso && proceso.tiempo_llegada < uProceso.tiempo_llegada) {
-        alert(`El tiempo del proceso ${proceso.nombre} debe ser mayor o igual a ${uProceso.tiempo_llegada}`);
+    if (lastProceso && proceso.tiempo_llegada < lastProceso.tiempo_llegada) {
+        alert(`El tiempo del proceso ${proceso.nombre} debe ser mayor o igual a ${lastProceso.tiempo_llegada}`);
         return;
     }
 
     procesos.push(proceso);
+    registrarProceso(proceso);
     txtProceso.value = ''; txtLlegada.value = ''; txtRafaga.value = '';
     ejecutar = false; hayProcesos = true;
+
+    lastProceso = proceso;
 }
 
 /**
@@ -251,50 +245,59 @@ const enviarEjecutarProceso = (): void => {
  * Función encargada de bloquear un proceso.
  */
 const bloquearProceso = (): void => {
-    if (i === procesos.length) {
+    if (!hayProcesos) {
         return;
     }
 
-    procesos[i].bloqueo.estado_block = true;
-    procesos[i].bloqueo.tiempo_inicio = procesos[i].tiempo_ejecutado + procesos[i].tiempo_comienzo;
-    alert(`El proceso ${ procesos[i].nombre } ha sido bloqueado.`);
-}
+    const proceso: Proceso = procesos.splice(0, 1)[0];
+    bloqueados.push(proceso);
+    dibujarProceso(proceso);
 
-/**
- * Función encargada de reanudar un proceso bloqueado.
- */
-const reanudarProceso = (): void => {
-    if (i === procesos.length) {
-        return;
-    }
-    
-    procesos[i].bloqueo.estado_block = false;
-    alert(`El proceso ${ procesos[i].nombre } ha sido desbloqueado.`);
+    i++;
+    alert(`El proceso ${ proceso.nombre } ha sido bloqueado.`);
     change();
-    procesos.push(procesos.splice(i, 1)[0]);
 }
 
 /**
  * Función encargada del manejo de la sección crítica.
  */
-const handler = (): void => {
+const handlerSC = (): void => {
     if (!hayProcesos || !ejecutar) {
         return;
     }
 
-    if (procesos[i].bloqueo.estado_block) {
-        procesos[i].bloqueo.tiempo_block++;
-        return;
-    }
-
-    if (procesos[i].tiempo_ejecutado < procesos[i].rafaga) {
+    if (procesos[0].tiempo_ejecutado < procesos[0].rafaga) {
         busy();
-        procesos[i].tiempo_ejecutado++;
+        procesos[0].tiempo_ejecutado++;
     } else {
-        registrarProceso(procesos[i]);
-        dibujarProceso(procesos[i]);
-        i++;
+        const proceso: Proceso = procesos.splice(0, 1)[0];
+        dibujarProceso(proceso);
         change();
+        i++;
+    }
+}
+
+/**
+ * Función encargada del manejo de los procesos bloqueados.
+ * El tiempo de bloqueo de un proceso es de 5s.
+ */
+const handlerCB = (): void => {
+    if (bloqueados.length > 0) {
+        if (bloqueados[0].bloqueo.tiempo_block < 5) {
+            bloqueados[0].bloqueo.tiempo_block++;
+        } else {
+            const procesoB: Proceso = bloqueados.splice(0, 1)[0];
+            const procesoN: Proceso = crearProceso(
+                `${ procesoB.nombre }*`, 
+                procesoB.tiempo_ejecutado, 
+                procesoB.rafaga - procesoB.tiempo_ejecutado
+            );
+            procesos.push(procesoN);
+            registrarProceso(procesoN);
+            alert(`El proceso ${ procesoB.nombre } ha sido desbloqueado.`);
+            hayProcesos = true;
+            lastProceso = procesoN;
+        }
     }
 }
 
@@ -327,7 +330,8 @@ const iniciarDiagrama = (): void => {
     }
 }
 
-const time = setInterval(handler, 1000);
+const seccionCritica = setInterval(handlerSC, 1000);
+const colaBloqueados = setInterval(handlerCB, 1000);
 
 btnEnviar.addEventListener('click', () => {
     enviarProceso();
@@ -346,7 +350,7 @@ btnBloquear.addEventListener('click', () => {
 });
 
 btnReanudar.addEventListener('click', () => {
-    reanudarProceso();
+    // reanudarProceso();
 });
 
 free();
