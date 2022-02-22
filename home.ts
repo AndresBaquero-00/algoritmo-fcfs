@@ -105,7 +105,8 @@ const change = (): void => {
 const crearProceso = (
     nombre: string = txtProceso.value,
     tiempo_llegada: number = parseInt(txtLlegada.value),
-    rafaga: number = parseInt(txtRafaga.value)
+    rafaga: number = parseInt(txtRafaga.value),
+    bloqueado: boolean = false
 ): Proceso => {
     const proceso: Proceso = {
         nombre: nombre,
@@ -127,6 +128,7 @@ const crearProceso = (
     proceso.tiempo_final = proceso.rafaga + proceso.tiempo_comienzo;
     proceso.tiempo_retorno = proceso.tiempo_final - proceso.tiempo_llegada;
     proceso.tiempo_espera = proceso.tiempo_retorno - proceso.rafaga;
+    proceso.bloqueo.tiempo_inicio = bloqueado ? proceso.tiempo_llegada + 5:proceso.tiempo_comienzo;
     return proceso;
 }
 
@@ -168,6 +170,12 @@ const dibujarProceso = (proceso: Proceso): void => {
     ctx.beginPath();
     ctx.moveTo(2 + proceso.tiempo_comienzo*10, 2 + 35*(i + 1));
     ctx.lineTo(2 + proceso.tiempo_comienzo*10, 13 + 35*(i + 1));
+    ctx.stroke();
+
+    /* Dibuja (|) tiempo de comienzo bloqueo */
+    ctx.beginPath();
+    ctx.moveTo(2 + proceso.bloqueo.tiempo_inicio*10, 2 + 35*(i + 1));
+    ctx.lineTo(2 + proceso.bloqueo.tiempo_inicio*10, 13 + 35*(i + 1));
     ctx.stroke();
 
     /* Dibuja (|) tiempo ejecutado */
@@ -290,7 +298,8 @@ const handlerCB = (): void => {
             const procesoN: Proceso = crearProceso(
                 `${ procesoB.nombre }*`,
                 procesoB.tiempo_comienzo + procesoB.tiempo_ejecutado,
-                procesoB.rafaga - procesoB.tiempo_ejecutado
+                procesoB.rafaga - procesoB.tiempo_ejecutado,
+                true
             );
             procesos.push(procesoN);
             registrarProceso(procesoN);

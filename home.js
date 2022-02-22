@@ -77,10 +77,11 @@ var change = function () {
  * @param { number } rafaga Rafaga del proceso.
  * @returns
  */
-var crearProceso = function (nombre, tiempo_llegada, rafaga) {
+var crearProceso = function (nombre, tiempo_llegada, rafaga, bloqueado) {
     if (nombre === void 0) { nombre = txtProceso.value; }
     if (tiempo_llegada === void 0) { tiempo_llegada = parseInt(txtLlegada.value); }
     if (rafaga === void 0) { rafaga = parseInt(txtRafaga.value); }
+    if (bloqueado === void 0) { bloqueado = false; }
     var proceso = {
         nombre: nombre,
         tiempo_llegada: tiempo_llegada,
@@ -100,6 +101,7 @@ var crearProceso = function (nombre, tiempo_llegada, rafaga) {
     proceso.tiempo_final = proceso.rafaga + proceso.tiempo_comienzo;
     proceso.tiempo_retorno = proceso.tiempo_final - proceso.tiempo_llegada;
     proceso.tiempo_espera = proceso.tiempo_retorno - proceso.rafaga;
+    proceso.bloqueo.tiempo_inicio = bloqueado ? proceso.tiempo_llegada + 5 : proceso.tiempo_comienzo;
     return proceso;
 };
 /**
@@ -130,6 +132,11 @@ var dibujarProceso = function (proceso) {
     ctx.beginPath();
     ctx.moveTo(2 + proceso.tiempo_comienzo * 10, 2 + 35 * (i + 1));
     ctx.lineTo(2 + proceso.tiempo_comienzo * 10, 13 + 35 * (i + 1));
+    ctx.stroke();
+    /* Dibuja (|) tiempo de comienzo bloqueo */
+    ctx.beginPath();
+    ctx.moveTo(2 + proceso.bloqueo.tiempo_inicio * 10, 2 + 35 * (i + 1));
+    ctx.lineTo(2 + proceso.bloqueo.tiempo_inicio * 10, 13 + 35 * (i + 1));
     ctx.stroke();
     /* Dibuja (|) tiempo ejecutado */
     ctx.beginPath();
@@ -236,7 +243,7 @@ var handlerCB = function () {
         }
         else {
             var procesoB = bloqueados.splice(0, 1)[0];
-            var procesoN = crearProceso("".concat(procesoB.nombre, "*"), procesoB.tiempo_comienzo + procesoB.tiempo_ejecutado, procesoB.rafaga - procesoB.tiempo_ejecutado);
+            var procesoN = crearProceso("".concat(procesoB.nombre, "*"), procesoB.tiempo_comienzo + procesoB.tiempo_ejecutado, procesoB.rafaga - procesoB.tiempo_ejecutado, true);
             procesos.push(procesoN);
             registrarProceso(procesoN);
             alert("El proceso ".concat(procesoB.nombre, " ha sido desbloqueado."));
