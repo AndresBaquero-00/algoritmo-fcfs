@@ -68,6 +68,14 @@ let cont = 0;
  * Array que almacena los colores que se van a usar para dibujar cada proceso en el diagrama.
  */
 const colores = ['red', 'green', 'blue', 'orange', '#7D3C98', 'black'];
+/**
+ * Almacena la cantidad de segundos que ha trabajado la sección crítica.
+ */
+let seconds = 0;
+/**
+ * Almacena el ultimo tiempo de llegada
+ */
+let lastTimeLlegada = 0;
 
 /**
  * Función que setea la sección crítica a estado ocupado.
@@ -227,11 +235,12 @@ const enviarProceso = (): void => {
         return;
     }
 
-    if (lastProceso && proceso.tiempo_llegada < lastProceso.tiempo_llegada) {
-        alert(`El tiempo del proceso ${proceso.nombre} debe ser mayor o igual a ${lastProceso.tiempo_llegada}`);
+    if (proceso.tiempo_llegada < lastTimeLlegada) {
+        alert(`El tiempo del proceso ${proceso.nombre} debe ser mayor o igual a ${lastTimeLlegada}`);
         return;
     }
 
+    lastTimeLlegada = proceso.tiempo_llegada;
     procesos.push(proceso);
     txtProceso.value = ''; txtLlegada.value = ''; txtRafaga.value = '';
     ejecutar = false; hayProcesos = true;
@@ -279,9 +288,15 @@ const handlerSeccionCritica = (): void => {
         return;
     }
 
+    if (seconds < procesos[0].tiempo_llegada) {
+        seconds++;
+        return;
+    }
+
     if (procesos[0].tiempo_ejecutado < procesos[0].rafaga) {
         busy();
         procesos[0].tiempo_ejecutado++;
+        seconds++;
     } else {
         const proceso: Proceso = registrarDatosProceso(procesos.splice(0, 1)[0]);
         dibujarProceso(proceso);

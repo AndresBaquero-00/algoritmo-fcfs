@@ -47,6 +47,14 @@ var cont = 0;
  */
 var colores = ['red', 'green', 'blue', 'orange', '#7D3C98', 'black'];
 /**
+ * Almacena la cantidad de segundos que ha trabajado la sección crítica.
+ */
+var seconds = 0;
+/**
+ * Almacena el ultimo tiempo de llegada
+ */
+var lastTimeLlegada = 0;
+/**
  * Función que setea la sección crítica a estado ocupado.
  */
 var busy = function () {
@@ -182,10 +190,11 @@ var enviarProceso = function () {
         alert('No se admiten campos vacíos. Intente nuevamente.');
         return;
     }
-    if (lastProceso && proceso.tiempo_llegada < lastProceso.tiempo_llegada) {
-        alert("El tiempo del proceso ".concat(proceso.nombre, " debe ser mayor o igual a ").concat(lastProceso.tiempo_llegada));
+    if (proceso.tiempo_llegada < lastTimeLlegada) {
+        alert("El tiempo del proceso ".concat(proceso.nombre, " debe ser mayor o igual a ").concat(lastTimeLlegada));
         return;
     }
+    lastTimeLlegada = proceso.tiempo_llegada;
     procesos.push(proceso);
     txtProceso.value = '';
     txtLlegada.value = '';
@@ -229,9 +238,14 @@ var handlerSeccionCritica = function () {
     if (!hayProcesos || !ejecutar) {
         return;
     }
+    if (seconds < procesos[0].tiempo_llegada) {
+        seconds++;
+        return;
+    }
     if (procesos[0].tiempo_ejecutado < procesos[0].rafaga) {
         busy();
         procesos[0].tiempo_ejecutado++;
+        seconds++;
     }
     else {
         var proceso = registrarDatosProceso(procesos.splice(0, 1)[0]);
